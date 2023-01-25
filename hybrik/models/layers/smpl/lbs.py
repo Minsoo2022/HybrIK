@@ -585,7 +585,7 @@ def batch_inverse_kinematics_transform(
     batch_size = pose_skeleton.shape[0]
     device = pose_skeleton.device
 
-    rel_rest_pose = rest_pose.clone()
+    rel_rest_pose = rest_pose.clone() # rest_pose가 뭔지 모르겠네 배치마다 다름 아 베타가 달라서 그런걸수
     rel_rest_pose[:, 1:] -= rest_pose[:, parents[1:]].clone()
     rel_rest_pose = torch.unsqueeze(rel_rest_pose, dim=-1)
 

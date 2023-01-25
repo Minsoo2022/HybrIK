@@ -279,8 +279,8 @@ class HRNetSMPLCam(nn.Module):
 
         pred_xyz_jts_29 = torch.zeros_like(pred_uvd_jts_29)
         if 'bboxes' in kwargs.keys():
-            bboxes = kwargs['bboxes']
-            img_center = kwargs['img_center']
+            bboxes = kwargs['bboxes'].cuda()
+            img_center = kwargs['img_center'].cuda()
 
             cx = (bboxes[:, 0] + bboxes[:, 2]) * 0.5
             cy = (bboxes[:, 1] + bboxes[:, 3]) * 0.5

@@ -10,7 +10,7 @@ import torch.multiprocessing as mp
 import torch.utils.data
 from torch.nn.utils import clip_grad
 
-from hybrik.datasets import MixDataset, MixDatasetCam, PW3D, MixDataset2Cam
+from hybrik.datasets import MixDataset, MixDatasetCam, PW3D, MixDataset2Cam, H36MDataset2Cam
 from hybrik.models import builder
 from hybrik.opt import cfg, logger, opt
 from hybrik.utils.env import init_dist
@@ -18,6 +18,7 @@ from hybrik.utils.metrics import DataLogger, NullWriter, calc_coord_accuracy
 from hybrik.utils.transforms import get_func_heatmap_to_coord
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import copy
 
 # torch.set_num_threads(64)
 num_gpu = torch.cuda.device_count()
@@ -101,7 +102,7 @@ def train(opt, train_loader, m, criterion, optimizer, writer, epoch_num):
                     accuvd29=acc_uvd_29_logger.avg,
                     acc17=acc_xyz_17_logger.avg)
             )
-
+        break
     if opt.log:
         train_loader.close()
 
@@ -136,9 +137,7 @@ def validate_gt(m, opt, cfg, gt_val_dataset, heatmap_to_coord, batch_size=24, pr
             except AttributeError:
                 assert k == 'type'
 
-        # output = m(inps, flip_test=opt.flip_test, bboxes=bboxes,
-        #            img_center=labels['img_center'])
-        output = m(inps, flip_test=False, bboxes=bboxes,
+        output = m(inps, flip_test=True, bboxes=bboxes,
                    img_center=labels['img_center'])
 
         # pred_xyz_jts_29 = output.pred_xyz_jts_29.reshape(inps.shape[0], -1, 3)
@@ -169,7 +168,7 @@ def validate_gt(m, opt, cfg, gt_val_dataset, heatmap_to_coord, batch_size=24, pr
     with open(os.path.join(opt.work_dir, f'test_gt_kpt_rank_{opt.rank}.pkl'), 'wb') as fid:
         pk.dump(kpt_pred, fid, pk.HIGHEST_PROTOCOL)
 
-    torch.distributed.barrier()  # Make sure all JSON files are saved
+    # torch.distributed.barrier()  # Make sure all JSON files are saved
 
     if opt.rank == 0:
         kpt_all_pred = {}
@@ -205,9 +204,13 @@ def main():
     if opt.launcher == 'slurm':
         main_worker(None, opt, cfg)
     else:
-        ngpus_per_node = torch.cuda.device_count()
-        opt.ngpus_per_node = ngpus_per_node
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(opt, cfg))
+        # ngpus_per_node = torch.cuda.device_count()
+        # opt.ngpus_per_node = ngpus_per_node
+        # mp.spawn(main_worker, nprocs=ngpus_per_node, args=(opt, cfg))
+        cfg.TRAIN.WORLD_SIZE = 1
+        opt.world_size = 1
+        cfg.TRAIN.BATCH_SIZE = 2
+        main_worker(0, opt, cfg)
 
 
 def main_worker(gpu, opt, cfg):
@@ -217,8 +220,8 @@ def main_worker(gpu, opt, cfg):
     if gpu is not None:
         opt.gpu = gpu
 
-    init_dist(opt)
-
+    # init_dist(opt)
+    opt.log = True
     if not opt.log:
         logger.setLevel(50)
         null_writer = NullWriter()
@@ -242,7 +245,7 @@ def main_worker(gpu, opt, cfg):
         logger.info(macs, params)
 
     m.cuda(opt.gpu)
-    m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[opt.gpu])
+    # m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[opt.gpu])
 
     criterion = builder.build_loss(cfg.LOSS).cuda(opt.gpu)
     optimizer = torch.optim.Adam(m.parameters(), lr=cfg.TRAIN.LR)
@@ -267,6 +270,10 @@ def main_worker(gpu, opt, cfg):
         train_dataset = MixDataset2Cam(
             cfg=cfg,
             train=True)
+    elif cfg.DATASET.DATASET == 'h36m_cam':
+        train_dataset = H36MDataset2Cam(
+            cfg=cfg,
+            train=True)
     else:
         raise NotImplementedError
 
@@ -277,26 +284,32 @@ def main_worker(gpu, opt, cfg):
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=(train_sampler is None), num_workers=opt.nThreads, sampler=train_sampler, worker_init_fn=_init_fn, pin_memory=True)
 
+    cfg_test = copy.copy(cfg)
+    cfg_test.DATASET.FLIP = False
     # gt val dataset
     if cfg.DATASET.DATASET == 'mix_smpl':
         gt_val_dataset_h36m = MixDataset(
-            cfg=cfg,
+            cfg=cfg_test,
             train=False)
     elif cfg.DATASET.DATASET == 'mix_smpl_cam' or cfg.DATASET.DATASET == 'mix2_smpl_cam':
         gt_val_dataset_h36m = MixDatasetCam(
-            cfg=cfg,
+            cfg=cfg_test,
             train=False)
+    elif cfg.DATASET.DATASET == 'h36m_cam':
+        gt_val_dataset_h36m = H36MDataset2Cam(
+            cfg=cfg_test,
+            train=False)
+
     else:
         raise NotImplementedError
 
-    gt_val_dataset_3dpw = PW3D(
-        cfg=cfg,
-        ann_file='3DPW_test_new.json',
-        train=False)
+    # gt_val_dataset_3dpw = PW3D(
+    #     cfg=cfg,
+    #     ann_file='3DPW_test_new.json',
+    #     train=False)
 
     opt.trainIters = 0
     best_err_h36m = 999
-    best_err_3dpw = 999
 
     for i in range(cfg.TRAIN.BEGIN_EPOCH, cfg.TRAIN.END_EPOCH):
         opt.epoch = i
@@ -315,23 +328,23 @@ def main_worker(gpu, opt, cfg):
         if (i + 1) % opt.snapshot == 0:
             if opt.log:
                 # Save checkpoint
-                torch.save(m.module.state_dict(), './exp/{}/{}-{}/model_{}.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id, opt.epoch))
+                torch.save(m.state_dict(), './exp/{}/{}-{}/model_{}.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id, opt.epoch))
 
             # Prediction Test
             with torch.no_grad():
                 gt_tot_err_h36m = validate_gt(m, opt, cfg, gt_val_dataset_h36m, heatmap_to_coord)
-                gt_tot_err_3dpw = validate_gt(m, opt, cfg, gt_val_dataset_3dpw, heatmap_to_coord)
+                # gt_tot_err_3dpw = validate_gt(m, opt, cfg, gt_val_dataset_3dpw, heatmap_to_coord)
                 if opt.log:
                     if gt_tot_err_h36m <= best_err_h36m:
                         best_err_h36m = gt_tot_err_h36m
-                        torch.save(m.module.state_dict(), './exp/{}/{}-{}/best_h36m_model.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
-                    if gt_tot_err_3dpw <= best_err_3dpw:
-                        best_err_3dpw = gt_tot_err_3dpw
-                        torch.save(m.module.state_dict(), './exp/{}/{}-{}/best_3dpw_model.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
+                        torch.save(m.state_dict(), './exp/{}/{}-{}/best_h36m_model.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
+                    # if gt_tot_err_3dpw <= best_err_3dpw:
+                    #     best_err_3dpw = gt_tot_err_3dpw
+                    #     torch.save(m.module.state_dict(), './exp/{}/{}-{}/best_3dpw_model.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
 
-                    logger.info(f'##### Epoch {opt.epoch} | h36m err: {gt_tot_err_h36m} / {best_err_h36m} | 3dpw err: {gt_tot_err_3dpw} / {best_err_3dpw} #####')
+                    logger.info(f'##### Epoch {opt.epoch} | h36m err: {gt_tot_err_h36m} / {best_err_h36m} #####')
 
-        torch.distributed.barrier()  # Sync
+        # torch.distributed.barrier()  # Sync
 
     torch.save(m.module.state_dict(), './exp/{}/{}-{}/final_DPG.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
 

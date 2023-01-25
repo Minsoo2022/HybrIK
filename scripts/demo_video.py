@@ -237,7 +237,7 @@ for img_path in tqdm(img_path_list):
         )
         uv_29 = pose_output.pred_uvd_jts.reshape(29, 3)[:, :2]
         transl = pose_output.transl.detach()
-
+        theta_mat = pose_output.pred_theta_mats
         # Visualization
         image = input_image.copy()
         focal = 1000.0

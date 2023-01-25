@@ -181,12 +181,22 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
 
         return pred_phi
 
+    def flip_sigma(self, pred_sigma):
+
+        for pair in self.joint_pairs_29:
+            dim0, dim1 = pair
+            idx = torch.Tensor((dim0, dim1)).long()
+            inv_idx = torch.Tensor((dim1, dim0)).long()
+            pred_sigma[:, idx] = pred_sigma[:, inv_idx]
+
+        return pred_sigma
+
     def forward(self, x, flip_test=False, **kwargs):
         batch_size = x.shape[0]
 
-        x0 = self.preact(x)
-        out = self.deconv_layers(x0)
-        out = self.final_layer(out)
+        x0 = self.preact(x)  # B, 512, 8, 8
+        out = self.deconv_layers(x0)  # B, 256, 64, 64
+        out = self.final_layer(out)   # B, 1856 (29 * 64), 64, 64
 
         if flip_test:
             flip_x = flip(x)
@@ -212,7 +222,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
 
             heatmaps = out / out.sum(dim=2, keepdim=True)
 
-        maxvals, _ = torch.max(heatmaps, dim=2, keepdim=True)
+        maxvals, _ = torch.max(heatmaps, dim=2, keepdim=True)  # 각 조인트에 대해 max 확률 값 근데 값들이 다 작음 대부분 0.1 이하, 그리고 안쓰
 
         heatmaps = heatmaps.reshape((heatmaps.shape[0], self.num_joints, self.depth_dim, self.height_dim, self.width_dim))
 
@@ -220,7 +230,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
         hm_y0 = heatmaps.sum((2, 4))
         hm_z0 = heatmaps.sum((3, 4))
 
-        range_tensor = torch.arange(hm_x0.shape[-1], dtype=torch.float32, device=hm_x0.device)
+        range_tensor = torch.arange(hm_x0.shape[-1], dtype=torch.float32, device=hm_x0.device) # [0, 1, ... ,63]
         hm_x = hm_x0 * range_tensor
         hm_y = hm_y0 * range_tensor
         hm_z = hm_z0 * range_tensor
@@ -234,9 +244,9 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
         coord_z = coord_z / float(self.depth_dim) - 0.5
 
         #  -0.5 ~ 0.5
-        pred_uvd_jts_29 = torch.cat((coord_x, coord_y, coord_z), dim=2)
+        pred_uvd_jts_29 = torch.cat((coord_x, coord_y, coord_z), dim=2) # Normalized coordinate
 
-        x0 = self.avg_pool(x0)
+        x0 = self.avg_pool(x0) # x0는 pretrained network 아웃풋
         x0 = x0.view(x0.size(0), -1)
         init_shape = self.init_shape.expand(batch_size, -1)     # (B, 10,)
         init_cam = self.init_cam.expand(batch_size, -1)  # (B, 3,)
@@ -269,7 +279,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
             flip_pred_shape = flip_delta_shape + init_shape
             flip_pred_phi = self.decphi(flip_xc)
             flip_pred_camera = self.deccam(flip_xc).reshape(batch_size, -1) + init_cam
-            flip_sigma = self.decsigma(flip_x0).reshape(
+            flip_sigma = self.decsigma(flip_xc).reshape(
                 batch_size, 29, 1).sigmoid()
 
             pred_shape = (pred_shape + flip_pred_shape) / 2
@@ -285,23 +295,23 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
             sigma = (sigma + flip_sigma) / 2
 
         camScale = pred_camera[:, :1].unsqueeze(1)
-        camTrans = pred_camera[:, 1:].unsqueeze(1)
+        camTrans = pred_camera[:, 1:].unsqueeze(1) # 왜 2차원이지?
 
         camDepth = self.focal_length / (self.input_size * camScale + 1e-9)
 
         pred_xyz_jts_29 = torch.zeros_like(pred_uvd_jts_29)
         if 'bboxes' in kwargs.keys():
-            bboxes = kwargs['bboxes']
-            img_center = kwargs['img_center']
+            bboxes = kwargs['bboxes'].cuda()
+            img_center = kwargs['img_center'].cuda()
 
             cx = (bboxes[:, 0] + bboxes[:, 2]) * 0.5
             cy = (bboxes[:, 1] + bboxes[:, 3]) * 0.5
             w = (bboxes[:, 2] - bboxes[:, 0])
             h = (bboxes[:, 3] - bboxes[:, 1])
 
-            cx = cx - img_center[:, 0]
+            cx = cx - img_center[:, 0]  # 중심을 0으로 맞추는
             cy = cy - img_center[:, 1]
-            cx = cx / w
+            cx = cx / w  # 대략 -0.5에서 0.5로 맞추는??
             cy = cy / h
 
             bbox_center = torch.stack((cx, cy), dim=1).unsqueeze(dim=1)
@@ -323,7 +333,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
             camera_root = pred_xyz_jts_29[:, 0, :] * self.depth_factor
             camera_root[:, 2] += camDepth[:, 0, 0]
 
-        pred_xyz_jts_29 = pred_xyz_jts_29 - pred_xyz_jts_29[:, [0]]
+        pred_xyz_jts_29 = pred_xyz_jts_29 - pred_xyz_jts_29[:, [0]]  # 루트 조인트를 0, 0, 0 으로 맞추는?
 
         pred_xyz_jts_29_flat = pred_xyz_jts_29.reshape(batch_size, -1)
 

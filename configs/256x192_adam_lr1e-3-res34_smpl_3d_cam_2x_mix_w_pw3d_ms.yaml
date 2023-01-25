@@ -1,13 +1,13 @@
 DATASET:
-  DATASET: 'mix2_smpl_cam'
+  DATASET: 'h36m_cam'
   SET_LIST:
-    - ROOT: './data/h36m/'
+    - ROOT: '../dataset/clean/'
       TEST_SET: 'Sample_20_test_Human36M_smpl'
       TRAIN_SET: 'Sample_trainmin_train_Human36M_smpl_leaf_twist'
-    - ROOT: './data/coco/'
-      TRAIN_SET: 'train2017'
-    - ROOT: './data/3dhp/'
-      TRAIN_SET: 'train_v2'
+#    - ROOT: './data/coco/'
+#      TRAIN_SET: 'train2017'
+#    - ROOT: './data/3dhp/'
+#      TRAIN_SET: 'train_v2'
   PROTOCOL: 2
   FLIP: True
   ROT_FACTOR: 30
@@ -17,9 +17,8 @@ DATASET:
   COLOR_FACTOR: 0.2
   OCCLUSION: True
 MODEL:
-  TYPE: 'Simple3DPoseBaseSMPLCamReg'
+  TYPE: 'Simple3DPoseBaseSMPLCam'
   PRETRAINED: ''
-#  TRY_LOAD: 'simple_res50_256x192.pth'
   TRY_LOAD: ''
   FOCAL_LENGTH: 1000
   IMAGE_SIZE:
@@ -33,7 +32,7 @@ MODEL:
   - 256
   - 256
   - 256
-  NUM_LAYERS: 50
+  NUM_LAYERS: 34
   EXTRA:
     SIGMA: 2
     BACKBONE: 'resnet'

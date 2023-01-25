@@ -71,11 +71,14 @@ class H36mSMPL(data.Dataset):
     def __init__(self,
                  cfg,
                  ann_file,
-                 root='./data/h36m',
+                 # root='./data/h36m',
+                 # root='../dataset/blur_11_230120/Human36M/',
+                 root='../data/h36m',
                  train=True,
                  skip_empty=True,
                  dpg=False,
                  lazy_import=False):
+        # root = cfg['DATASET']['SET_LIST'][0]['ROOT']
         self._cfg = cfg
         self.protocol = cfg.DATASET.PROTOCOL
 
@@ -225,6 +228,10 @@ class H36mSMPL(data.Dataset):
                 det_bbox_set[image_id] = item['bbox']
 
         for ann_image, ann_annotations in zip(database['images'], database['annotations']):
+            # if not 'ca_04' in ann_image['file_name']:
+            #     continue
+            # if not os.path.exists(os.path.join(self._root, 'images', ann_image['file_name'])):
+            #     continue
             ann = dict()
             for k, v in ann_image.items():
                 assert k not in ann.keys()
@@ -558,10 +565,14 @@ class H36mSMPL(data.Dataset):
         eval_summary = f'XYZ_14 Protocol {self.protocol} error ({metric}) >> PA-MPJPE: {tot_err_align:2f} | MPJPE: {tot_err:2f}, x: {tot_err_x:2f}, y: {tot_err_y:.2f}, z: {tot_err_z:2f}\n'
 
         # error for each action
-        for i in range(len(error_action)):
-            err = np.mean(np.array(error_action[i]))
-            eval_summary += (self.action_name[i] + ': %.2f ' % err)
+        # for i in range(len(error_action)):
+        #     err = np.mean(np.array(error_action[i]))
+        #     eval_summary += (self.action_name[i] + ': %.2f ' % err)
 
+        for i in range(len(self.joints_name_14)):
+            err = np.mean((error[:, i]))
+            err_align = np.mean((error_align[:, i]))
+            eval_summary += (self.joints_name_14[i] + ': %.3f, %.3f  ' % (err, err_align))
         print(eval_summary)
 
         # prediction save

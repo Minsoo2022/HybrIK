@@ -135,7 +135,7 @@ def validate_gt(m, opt, cfg, gt_val_dataset, heatmap_to_coord, batch_size=32, pr
     with open(os.path.join('exp', f'test_gt_kpt_rank_{opt.rank}.pkl'), 'wb') as fid:
         pk.dump(kpt_pred, fid, pk.HIGHEST_PROTOCOL)
 
-    torch.distributed.barrier()  # Make sure all JSON files are saved
+    # torch.distributed.barrier()  # Make sure all JSON files are saved
 
     if opt.rank == 0:
         kpt_all_pred = {}
@@ -164,7 +164,8 @@ def main():
     else:
         ngpus_per_node = torch.cuda.device_count()
         opt.ngpus_per_node = ngpus_per_node
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(opt, cfg))
+        main_worker(0, opt, cfg)
+        # mp.spawn(main_worker, nprocs=ngpus_per_node, args=(opt, cfg))
 
 
 def main_worker(gpu, opt, cfg):
@@ -172,7 +173,8 @@ def main_worker(gpu, opt, cfg):
     if gpu is not None:
         opt.gpu = gpu
 
-    init_dist(opt)
+    # init_dist(opt)
+    opt.log = True
 
     if not opt.log:
         null_writer = NullWriter()
@@ -191,7 +193,7 @@ def main_worker(gpu, opt, cfg):
         m.load_state_dict(save_dict, strict=False)
 
     m.cuda(opt.gpu)
-    m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[opt.gpu])
+    # m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[opt.gpu])
 
     heatmap_to_coord = get_func_heatmap_to_coord(cfg)
 
@@ -205,15 +207,15 @@ def main_worker(gpu, opt, cfg):
         ann_file='Sample_20_test_Human36M_smpl',
         train=False)
 
-    gt_val_dataset_3dpw = PW3D(
-        cfg=cfg,
-        ann_file='3DPW_test_new.json',
-        train=False)
+    # gt_val_dataset_3dpw = PW3D(
+    #     cfg=cfg,
+    #     ann_file='3DPW_test_new.json',
+    #     train=False)
 
-    print('##### Testing on 3DPW #####')
-    with torch.no_grad():
-        gt_tot_err = validate_gt(m, opt, cfg, gt_val_dataset_3dpw, heatmap_to_coord, opt.batch, test_vertice=True)
-    print(f'##### gt 3dpw err: {gt_tot_err} #####')
+    # print('##### Testing on 3DPW #####')
+    # with torch.no_grad():
+    #     gt_tot_err = validate_gt(m, opt, cfg, gt_val_dataset_3dpw, heatmap_to_coord, opt.batch, test_vertice=True)
+    # print(f'##### gt 3dpw err: {gt_tot_err} #####')
     # with torch.no_grad():
     #     gt_tot_err = validate_gt(m, opt, cfg, gt_val_dataset_hp3d, heatmap_to_coord, opt.batch)
     # print(f'##### gt 3dhp err: {gt_tot_err} #####')

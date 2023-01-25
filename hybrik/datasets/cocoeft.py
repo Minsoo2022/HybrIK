@@ -52,7 +52,7 @@ class COCO_EFT_3D(data.Dataset):
     def __init__(self,
                  cfg,
                  ann_file,
-                 root='./data/coco',
+                 root='../data/coco',
                  train=True,
                  skip_empty=True,
                  dpg=False,

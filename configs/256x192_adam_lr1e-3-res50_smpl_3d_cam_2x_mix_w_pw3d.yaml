@@ -17,9 +17,8 @@ DATASET:
   COLOR_FACTOR: 0.2
   OCCLUSION: True
 MODEL:
-  TYPE: 'Simple3DPoseBaseSMPLCamReg'
+  TYPE: 'Simple3DPoseBaseSMPLCam'
   PRETRAINED: ''
-#  TRY_LOAD: 'simple_res50_256x192.pth'
   TRY_LOAD: ''
   FOCAL_LENGTH: 1000
   IMAGE_SIZE:
