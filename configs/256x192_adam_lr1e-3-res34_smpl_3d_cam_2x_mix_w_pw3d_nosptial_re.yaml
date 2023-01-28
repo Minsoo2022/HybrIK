@@ -19,7 +19,7 @@ DATASET:
 MODEL:
   TYPE: 'Simple3DPoseBaseSMPLCam'
   PRETRAINED: ''
-  TRY_LOAD: ''
+  TRY_LOAD: './exp/mix2_smpl_cam/256x192_adam_lr1e-3-res34_smpl_3d_cam_2x_mix_w_pw3d_nosptial.yaml-test_3dpw/model_13.pth'
   FOCAL_LENGTH: 1000
   IMAGE_SIZE:
   - 256
@@ -66,8 +66,8 @@ LOSS:
 TEST:
   HEATMAP2COORD: 'coord'
 TRAIN:
-  WORLD_SIZE: 4
-  BATCH_SIZE: 64
+  WORLD_SIZE: 8
+  BATCH_SIZE: 32
   BEGIN_EPOCH: 0
   END_EPOCH: 200
   OPTIMIZER: 'adam'

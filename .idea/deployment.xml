@@ -16,6 +16,20 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="root@10.1.210.36:8146 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/ms/ws/HybrIK" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@10.1.210.36:8146 password (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/ms/ws/HybrIK" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="ubuntu@ec2-44-240-96-133.us-west-2.compute.amazonaws.com:22 key">
         <serverdata>
           <mappings>

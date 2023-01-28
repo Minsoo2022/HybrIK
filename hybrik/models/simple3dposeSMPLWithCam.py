@@ -70,7 +70,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
 
         self.deconv_layers = self._make_deconv_layer()
         self.final_layer = nn.Conv2d(
-            self.deconv_dim[2], self.num_joints * self.depth_dim, kernel_size=1, stride=1, padding=0)
+            self.deconv_dim[-1], self.num_joints * self.depth_dim, kernel_size=1, stride=1, padding=0)
 
         h36m_jregressor = np.load('./model_files/J_regressor_h36m.npy')
         self.smpl = SMPL_layer(
@@ -126,6 +126,15 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
         deconv3 = nn.ConvTranspose2d(
             self.deconv_dim[1], self.deconv_dim[2], kernel_size=4, stride=2, padding=int(4 / 2) - 1, bias=False)
         bn3 = self._norm_layer(self.deconv_dim[2])
+        deconv4 = nn.ConvTranspose2d(
+            self.deconv_dim[2], self.deconv_dim[3], kernel_size=4, stride=2, padding=int(4 / 2) - 1, bias=False)
+        bn4 = self._norm_layer(self.deconv_dim[3])
+        deconv5 = nn.ConvTranspose2d(
+            self.deconv_dim[3], self.deconv_dim[4], kernel_size=4, stride=2, padding=int(4 / 2) - 1, bias=False)
+        bn5 = self._norm_layer(self.deconv_dim[4])
+        deconv6 = nn.ConvTranspose2d(
+            self.deconv_dim[4], self.deconv_dim[5], kernel_size=4, stride=2, padding=int(4 / 2) - 1, bias=False)
+        bn6 = self._norm_layer(self.deconv_dim[5])
 
         deconv_layers.append(deconv1)
         deconv_layers.append(bn1)
@@ -135,6 +144,15 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
         deconv_layers.append(nn.ReLU(inplace=True))
         deconv_layers.append(deconv3)
         deconv_layers.append(bn3)
+        deconv_layers.append(nn.ReLU(inplace=True))
+        deconv_layers.append(deconv4)
+        deconv_layers.append(bn4)
+        deconv_layers.append(nn.ReLU(inplace=True))
+        deconv_layers.append(deconv5)
+        deconv_layers.append(bn5)
+        deconv_layers.append(nn.ReLU(inplace=True))
+        deconv_layers.append(deconv6)
+        deconv_layers.append(bn6)
         deconv_layers.append(nn.ReLU(inplace=True))
 
         return nn.Sequential(*deconv_layers)
@@ -195,6 +213,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
         batch_size = x.shape[0]
 
         x0 = self.preact(x)  # B, 512, 8, 8
+        x0 = self.avg_pool(x0)
         out = self.deconv_layers(x0)  # B, 256, 64, 64
         out = self.final_layer(out)   # B, 1856 (29 * 64), 64, 64
 
@@ -246,7 +265,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
         #  -0.5 ~ 0.5
         pred_uvd_jts_29 = torch.cat((coord_x, coord_y, coord_z), dim=2) # Normalized coordinate
 
-        x0 = self.avg_pool(x0) # x0는 pretrained network 아웃풋
+        # x0 = self.avg_pool(x0) # x0는 pretrained network 아웃풋
         x0 = x0.view(x0.size(0), -1)
         init_shape = self.init_shape.expand(batch_size, -1)     # (B, 10,)
         init_cam = self.init_cam.expand(batch_size, -1)  # (B, 3,)

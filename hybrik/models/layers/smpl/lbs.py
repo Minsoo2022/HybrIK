@@ -359,7 +359,7 @@ def hybrik(betas, global_orient, pose_skeleton, phis,
             rest_J.clone(), children, parents, dtype=dtype, train=train,
             leaf_thetas=leaf_thetas)
     else:
-        rot_mats, rotate_rest_pose = batch_inverse_kinematics_transform(
+        rot_mats, rotate_rest_pose = batch_inverse_kinematics_transform_naive(
             pose_skeleton, global_orient, phis,
             rest_J.clone(), children, parents, dtype=dtype, train=train,
             leaf_thetas=leaf_thetas)
