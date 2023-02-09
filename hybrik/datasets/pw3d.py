@@ -176,6 +176,9 @@ class PW3D(data.Dataset):
         return len(self.db['img_path'])
 
     def load_pt(self):
+        # print(os.path.exists(self._ann_file + '.pt'))
+        # print(self._ann_file + '.pt')
+        # print(os.path.abspath('.'))
         if os.path.exists(self._ann_file + '.pt'):
             db = joblib.load(self._ann_file + '.pt', 'r')
         else:

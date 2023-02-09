@@ -719,7 +719,7 @@ class SimpleTransform3DSMPLCam(object):
         uvd[:, 2] = xyz[:, 2] / self.bbox_3d_shape[2]
         uvd[:, :2] = f / 256.0 * (xyz[:, :2] + transl) / z_cam
         return uvd
-    
+
     def back_projection(self, uvd, pred_camera, focal_length=5000.):
         camScale = pred_camera[:1].reshape(1, -1)
         camTrans = pred_camera[1:].reshape(1, -1)

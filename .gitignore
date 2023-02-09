@@ -109,3 +109,11 @@ data/
 exp
 model_files/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl
 
+*.xml
+*.jpg
+*.xml
+*.xml
+.DS_Store
+*.png
+*.mp4
+examples/.DS_Store

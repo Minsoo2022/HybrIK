@@ -323,7 +323,7 @@ class Simple3DPoseBaseSMPLCam(nn.Module):
             pred_xyz_jts_29[:, :, :2] = pred_xy_jts_29_meter / self.depth_factor  # unit: (self.depth_factor m)
 
             camera_root = pred_xyz_jts_29[:, 0, :] * self.depth_factor
-            camera_root[:, 2] += camDepth[:, 0, 0]
+            camera_root[:, 2] += camDepth[:, 0, 0] # unit: m
         else:
             pred_xyz_jts_29[:, :, 2:] = pred_uvd_jts_29[:, :, 2:].clone()  # unit: (self.depth_factor m)
             pred_xyz_jts_29_meter = (pred_uvd_jts_29[:, :, :2] * self.input_size / self.focal_length) * (pred_xyz_jts_29[:, :, 2:] * self.depth_factor + camDepth) - camTrans  # unit: m

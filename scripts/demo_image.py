@@ -45,10 +45,11 @@ parser.add_argument('--out-dir',
 opt = parser.parse_args()
 
 
-# cfg_file = 'configs/256x192_adam_lr1e-3-res34_smpl_3d_cam_2x_mix_w_pw3d.yaml'
+cfg_file = './configs/256x192_adam_lr1e-3-res34_smpl_3d_cam_2x_mix_w_pw3d.yaml'
 # CKPT = './pretrained_w_cam.pth'
-cfg_file = 'configs/256x192_adam_lr1e-3-hrw48_cam_2x_w_pw3d_3dhp.yaml'
-CKPT = './pretrained_hrnet.pth'
+CKPT = './hybrik_res34_w3dpw.pth'
+# cfg_file = 'configs/256x192_adam_lr1e-3-hrw48_cam_2x_w_pw3d_3dhp.yaml'
+# CKPT = './pretrained_hrnet.pth'
 cfg = update_config(cfg_file)
 
 bbox_3d_shape = getattr(cfg.MODEL, 'BBOX_3D_SHAPE', (2000, 2000, 2000))
@@ -80,15 +81,14 @@ print(f'Loading model from {CKPT}...')
 save_dict = torch.load(CKPT, map_location='cpu')
 if type(save_dict) == dict:
     model_dict = save_dict['model']
-    hybrik_model.load_state_dict(model_dict)
+    hybrik_model.load_state_dict(model_dict, strict=False)
 else:
-    hybrik_model.load_state_dict(save_dict)
+    hybrik_model.load_state_dict(save_dict, strict=False)
 
 det_model.cuda(opt.gpu)
 hybrik_model.cuda(opt.gpu)
 det_model.eval()
 hybrik_model.eval()
-
 files = os.listdir(opt.img_dir)
 smpl_faces = torch.from_numpy(hybrik_model.smpl.faces.astype(np.int32))
 
@@ -119,7 +119,7 @@ for file in tqdm(files):
             input_image, tight_bbox)
         pose_input = pose_input.to(opt.gpu)[None, :, :, :]
         pose_output = hybrik_model(
-            pose_input, flip_test=True,
+            pose_input, flip_test=False,
             bboxes=torch.from_numpy(np.array(bbox)).to(pose_input.device).unsqueeze(0).float(),
             img_center=torch.from_numpy(img_center).to(pose_input.device).unsqueeze(0).float()
         )
