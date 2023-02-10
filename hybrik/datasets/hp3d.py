@@ -12,7 +12,7 @@ from hybrik.utils.pose_utils import (cam2pixel_matrix, pixel2cam_matrix,
                                      reconstruction_error)
 from hybrik.utils.presets import (SimpleTransform3DSMPL,
                                   SimpleTransform3DSMPLCam)
-
+import torch
 
 class HP3D(data.Dataset):
     """ MPI-INF-3DHP dataset.
@@ -92,7 +92,7 @@ class HP3D(data.Dataset):
         self._cfg = cfg
 
         self._ann_file = os.path.join(
-            root, f'annotation_mpi_inf_3dhp_{ann_file}.json')
+            root, ann_file)
         self._lazy_import = lazy_import
         self._root = root
         self._skip_empty = skip_empty
@@ -170,8 +170,13 @@ class HP3D(data.Dataset):
         # load ground truth, including bbox, keypoints, image size
         label = {}
         for k in self.db.keys():
+            if k == 'meta_info_tcmr':
+                continue
             label[k] = self.db[k][idx].copy()
-        img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+        if not label['is_in_tcmr']:
+            return torch.Tensor([0])
+        # img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+        img = np.zeros([2048, 2048, 3]).astype('uint8')
 
         # transform ground truth into training label and apply data augmentation
         target = self.transformation(img, label)

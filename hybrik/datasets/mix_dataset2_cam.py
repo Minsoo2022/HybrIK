@@ -102,9 +102,33 @@ class MixDataset2Cam(data.Dataset):
         'camera_scale',
         'camera_trans',
         'camera_valid',
-        'camera_error'
+        'camera_error',
+        'target_uvd_61',
+        'target_weight_61'
     ])
-
+    # [   'camera_scale',
+    #     'camera_trans',
+    #     'camera_valid',
+    #     'target_uvd_61',
+    #     'target_weight_61',
+    #     'target_xyz_weight_24',
+    #     'target_theta',
+    #     'target_theta_weight',
+    #     'target_beta',
+    #     'target_smpl_weight',
+    #     'target_uvd_29',
+    #     'target_xyz_24',
+    #     'target_weight_24',
+    #     'target_weight_29',
+    #     'target_xyz_17',
+    #     'target_weight_17',
+    #     'trans_inv',
+    #     'intrinsic_param',
+    #     'joint_root',
+    #     'target_twist',
+    #     'target_twist_weight',
+    #     'depth_factor',
+    #     ]
     def __init__(self,
                  cfg,
                  train=True):
@@ -112,57 +136,85 @@ class MixDataset2Cam(data.Dataset):
         self.heatmap_size = cfg.MODEL.HEATMAP_SIZE
         self.bbox_3d_shape = getattr(cfg.MODEL, 'BBOX_3D_SHAPE', (2000, 2000, 2000))
 
-        if train:
-            self.db0 = H36mSMPL(
-                cfg=cfg,
-                ann_file=cfg.DATASET.SET_LIST[0].TRAIN_SET,
-                train=True)
-            self.db1 = Mscoco(
-                cfg=cfg,
-                ann_file=f'person_keypoints_{cfg.DATASET.SET_LIST[1].TRAIN_SET}.json',
-                train=True)
-            self.db2 = HP3D(
-                cfg=cfg,
-                ann_file=cfg.DATASET.SET_LIST[2].TRAIN_SET,
-                train=True)
-            self.db3 = PW3D(
-                cfg=cfg,
-                ann_file='3DPW_train_new.json',
-                train=True
-            )
+        # if train:
+        #     self.db0 = H36mSMPL(
+        #         cfg=cfg,
+        #         ann_file=cfg.DATASET.SET_LIST[0].TRAIN_SET,
+        #         train=True)
+        #     self.db1 = Mscoco(
+        #         cfg=cfg,
+        #         ann_file=f'person_keypoints_{cfg.DATASET.SET_LIST[1].TRAIN_SET}.json',
+        #         train=True)
+        #     self.db2 = HP3D(
+        #         cfg=cfg,
+        #         ann_file=cfg.DATASET.SET_LIST[2].TRAIN_SET,
+        #         train=True)
+        #     self.db3 = PW3D(
+        #         cfg=cfg,
+        #         ann_file='3DPW_train_new.json',
+        #         train=True
+        #     )
+        #
+        #     self._subsets = [self.db0, self.db1, self.db2, self.db3]
+        #     self._2d_length = len(self.db1)
+        #     self._3d_length = len(self.db0) + len(self.db2) + len(self.db3)
+        # else:
+        # self.db0 = H36mSMPL(
+        #     cfg=cfg,
+        #     ann_file=cfg.DATASET.SET_LIST[0].TEST_SET,
+        #     train=train)
 
-            self._subsets = [self.db0, self.db1, self.db2, self.db3]
-            self._2d_length = len(self.db1)
-            self._3d_length = len(self.db0) + len(self.db2) + len(self.db3)
-        else:
-            self.db0 = H36mSMPL(
-                cfg=cfg,
-                ann_file=cfg.DATASET.SET_LIST[0].TEST_SET,
-                train=train)
+        self.db0 = H36mSMPL(
+            cfg=cfg,
+            ann_file=cfg.DATASET.SET_LIST[0].TRAIN_SET,
+            train=True)
+        self.dataset_idx = 0
 
-            self._subsets = [self.db0]
+        # self.db0 = PW3D(
+        #     cfg=cfg,
+        #     ann_file='3DPW_train_new.json',
+        #     train=True)
+        # self.dataset_idx = 3
+
+        # self.db0 = HP3D(
+        #     cfg=cfg,
+        #     ann_file='annotation_mpi_inf_3dhp_train_v2_tcmr.json',
+        #     train=True)
+        # self.dataset_idx = 2
+
+        self.dbh36 = H36mSMPL(
+            cfg=cfg,
+            ann_file=cfg.DATASET.SET_LIST[0].TEST_SET,
+            train=train)
+
+        self._subsets = [self.db0]
 
         self._subset_size = [len(item) for item in self._subsets]
         self._db0_size = len(self.db0)
 
-        if train:
-            self.max_db_data_num = max(self._subset_size)
-            print('max_data_set', np.argmax(np.array(self._subset_size)))
-            self.tot_size = (2 * max(self._subset_size))
-            self.partition = [0.3, 0.4, 0.1, 0.2]
-        else:
-            self.tot_size = self._db0_size
-            self.partition = [1]
+        # if train:
+        #     self.max_db_data_num = max(self._subset_size)
+        #     print('max_data_set', np.argmax(np.array(self._subset_size)))
+        #     self.tot_size = (2 * max(self._subset_size))
+        #     self.partition = [0.3, 0.4, 0.1, 0.2]
+        # else:
+        self.tot_size = self._db0_size
+        self.partition = [1]
 
         self.cumulative_sizes = self.cumsum(self.partition)
 
-        self.joint_pairs_24 = self.db0.joint_pairs_24
-        self.joint_pairs_17 = self.db0.joint_pairs_17
-        self.root_idx_17 = self.db0.root_idx_17
-        self.root_idx_smpl = self.db0.root_idx_smpl
-        self.evaluate_xyz_17 = self.db0.evaluate_xyz_17
-        self.evaluate_uvd_24 = self.db0.evaluate_uvd_24
-        self.evaluate_xyz_24 = self.db0.evaluate_xyz_24
+        self.joint_pairs_24 = self.dbh36.joint_pairs_24
+        self.joint_pairs_17 = self.dbh36.joint_pairs_17
+        self.root_idx_17 = self.dbh36.root_idx_17
+        self.root_idx_smpl = self.dbh36.root_idx_smpl
+        self.evaluate_xyz_17 = self.dbh36.evaluate_xyz_17
+        self.evaluate_uvd_24 = self.dbh36.evaluate_uvd_24
+        self.evaluate_xyz_24 = self.dbh36.evaluate_xyz_24
+
+        self.uvd29_to_joint61 = torch.tensor([-1, 12, 17, 19, 21, 16, 18, 20,  0,  2,  5,  8,  1,  4,  7, -1, -1, -1,
+        -1, 27, -1, -1, 28, -1, -1,  8,  5, -1, -1,  4,  7, 21, 19, 17, 16, 18,
+        20, -1, 24, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  3,  6,  9, 10, 11,
+        13, 14, 15, 22, 23, 25, 26], dtype=torch.long)
 
     @staticmethod
     def cumsum(sequence):
@@ -176,26 +228,28 @@ class MixDataset2Cam(data.Dataset):
         return self.tot_size
 
     def __getitem__(self, idx):
-        assert idx >= 0
-        if self._train:
-            p = random.uniform(0, 1)
+        # assert idx >= 0
+        # if self._train:
+        #     p = random.uniform(0, 1)
+        #
+        #     dataset_idx = bisect.bisect_right(self.cumulative_sizes, p)
+        #
+        #     _db_len = self._subset_size[dataset_idx]
+        #
+        #     # last batch: random sampling
+        #     if idx >= _db_len * (self.tot_size // _db_len):
+        #         sample_idx = random.randint(0, _db_len - 1)
+        #     else:  # before last batch: use modular
+        #         sample_idx = idx % _db_len
+        # else:
+        dataset_idx = 0
+        sample_idx = idx
 
-            dataset_idx = bisect.bisect_right(self.cumulative_sizes, p)
-
-            _db_len = self._subset_size[dataset_idx]
-
-            # last batch: random sampling
-            if idx >= _db_len * (self.tot_size // _db_len):
-                sample_idx = random.randint(0, _db_len - 1)
-            else:  # before last batch: use modular
-                sample_idx = idx % _db_len
-        else:
-            dataset_idx = 0
-            sample_idx = idx
-
-        img, target, img_id, bbox = self._subsets[dataset_idx][sample_idx]
-
-        if dataset_idx > 0 and dataset_idx < 3:
+        results = self._subsets[dataset_idx][sample_idx]
+        if type(results) != tuple:
+            return results
+        img, target, img_id, bbox = results
+        if self.dataset_idx > 0 and self.dataset_idx < 3:
             # COCO, 3DHP
             label_jts_origin = target.pop('target')
             label_jts_mask_origin = target.pop('target_weight')
@@ -207,7 +261,7 @@ class MixDataset2Cam(data.Dataset):
             label_xyz_17_mask = torch.zeros(17, 3)
             label_xyz_29_mask = torch.zeros(29, 3)
 
-            if dataset_idx == 1:
+            if self.dataset_idx == 1:
                 # COCO
                 assert label_jts_origin.dim() == 1 and label_jts_origin.shape[0] == 17 * 2, label_jts_origin.shape
 
@@ -220,7 +274,7 @@ class MixDataset2Cam(data.Dataset):
                     if id2 >= 0:
                         label_uvd_29[id1, :2] = label_jts_origin[id2, :2].clone()
                         label_uvd_29_mask[id1, :2] = label_jts_mask_origin[id2, :2].clone()
-            elif dataset_idx == 2:
+            elif self.dataset_idx == 2:
                 # 3DHP
                 assert label_jts_origin.dim() == 1 and label_jts_origin.shape[0] == 28 * 3, label_jts_origin.shape
 
@@ -238,6 +292,13 @@ class MixDataset2Cam(data.Dataset):
                         label_uvd_29_mask[id1, :3] = label_jts_mask_origin[id2, :3].clone()
                         label_xyz_24[id1, :3] = label_xyz_origin[id2, :3].clone()
                         label_xyz_29_mask[id1, :3] = label_xyz_mask_origin[id2, :3].clone()
+
+            label_uvd_61 = label_uvd_29[self.uvd29_to_joint61]
+            label_uvd_61[self.uvd29_to_joint61 == -1] = torch.tensor([0., 0., 0.])
+            label_uvd_61 = label_uvd_61.reshape(-1)
+            label_uvd_61_mask = label_uvd_29_mask[self.uvd29_to_joint61]
+            label_uvd_61_mask[self.uvd29_to_joint61 == -1] = torch.tensor([0., 0., 0.])
+            label_uvd_61_mask = label_uvd_61_mask.reshape(-1)
 
             label_uvd_29 = label_uvd_29.reshape(-1)
             label_xyz_24 = label_xyz_24.reshape(-1)
@@ -262,6 +323,8 @@ class MixDataset2Cam(data.Dataset):
             target['target_twist'] = torch.zeros(23, 2)
             target['target_twist_weight'] = torch.zeros(23, 2)
             target['target_xyz_weight_24'] = label_xyz_24_mask
+            target['target_uvd_61'] = label_uvd_61
+            target['target_weight_61'] = label_uvd_61_mask
         else:
             assert set(target.keys()).issubset(self.data_domain), (set(target.keys()) - self.data_domain, self.data_domain - set(target.keys()),)
         target.pop('type')

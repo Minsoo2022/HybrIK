@@ -5,6 +5,7 @@ import os
 import cv2
 import joblib
 import numpy as np
+import torch
 import torch.utils.data as data
 
 from hybrik.utils.bbox import bbox_clip_xyxy, bbox_xywh_to_xyxy
@@ -84,6 +85,8 @@ class H36mSMPL(data.Dataset):
 
         self._ann_file = os.path.join(
             root, 'annotations', ann_file + f'_protocol_{self.protocol}.json')
+        # self._ann_file = os.path.join(
+        #     root, 'annotations', ann_file + f'.json')
         self._lazy_import = lazy_import
         self._root = root
         self._skip_empty = skip_empty
@@ -132,6 +135,10 @@ class H36mSMPL(data.Dataset):
         self.rshoulder_idx_29 = self.joints_name_29.index('right_shoulder')
 
         self.db = self.load_pt()
+        self.uvd29_to_joint61 = torch.tensor([-1, 12, 17, 19, 21, 16, 18, 20,  0,  2,  5,  8,  1,  4,  7, -1, -1, -1,
+        -1, 27, -1, -1, 28, -1, -1,  8,  5, -1, -1,  4,  7, 21, 19, 17, 16, 18,
+        20, -1, 24, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  3,  6,  9, 10, 11,
+        13, 14, 15, 22, 23, 25, 26], dtype=torch.long)
 
         if cfg.MODEL.EXTRA.PRESET == 'simple_smpl_3d':
             self.transformation = SimpleTransform3DSMPL(
@@ -166,14 +173,24 @@ class H36mSMPL(data.Dataset):
         # load ground truth, including bbox, keypoints, image size
         label = {}
         for k in self.db.keys():
+            if k == 'meta_info_tcmr':
+                continue
             label[k] = self.db[k][idx].copy()
-
-        img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+        if not label['is_in_tcmr']:
+            return torch.Tensor([0])
+        # img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
         # img = load_image(img_path)
         # img = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
 
         # transform ground truth into training label and apply data augmentation
+        img = np.zeros([1002,1000,3]).astype('uint8')
         target = self.transformation(img, label)
+        target['target_uvd_61'] = target['target_uvd_29'].reshape(29,3)[self.uvd29_to_joint61]
+        target['target_uvd_61'][self.uvd29_to_joint61 == -1] = torch.tensor([0., 0., 0.])
+        target['target_uvd_61'] = target['target_uvd_61'].reshape(-1)
+        target['target_weight_61'] = target['target_weight_29'].reshape(29,3)[self.uvd29_to_joint61]
+        target['target_weight_61'][self.uvd29_to_joint61 == -1] = torch.tensor([0., 0., 0.])
+        target['target_weight_61'] = target['target_weight_61'].reshape(-1)
 
         img = target.pop('image')
         bbox = target.pop('bbox')

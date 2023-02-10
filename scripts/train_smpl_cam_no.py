@@ -3,6 +3,7 @@ import os
 import pickle as pk
 import random
 import sys
+import joblib
 
 import numpy as np
 import torch
@@ -40,71 +41,25 @@ def train(opt, train_loader, m, criterion, optimizer, writer, epoch_num):
     hm_shape = (hm_shape[1], hm_shape[0], depth_dim)
     root_idx_17 = train_loader.dataset.root_idx_17
 
-    if opt.log:
-        train_loader = tqdm(train_loader, dynamic_ncols=True)
 
-    for j, (inps, labels, _, bboxes) in enumerate(train_loader):
-        if isinstance(inps, list):
-            inps = [inp.cuda(opt.gpu).requires_grad_() for inp in inps]
-        else:
-            inps = inps.cuda(opt.gpu).requires_grad_()
-
-        for k, _ in labels.items():
-            labels[k] = labels[k].cuda(opt.gpu)
-
-        trans_inv = labels.pop('trans_inv')
-        intrinsic_param = labels.pop('intrinsic_param')
-        root = labels.pop('joint_root')
-        depth_factor = labels.pop('depth_factor')
-
-        output = m(inps, trans_inv=trans_inv, intrinsic_param=intrinsic_param, joint_root=root, depth_factor=depth_factor)
-
-        loss = criterion(output, labels)
-
-        pred_uvd_jts = output.pred_uvd_jts
-        pred_xyz_jts_17 = output.pred_xyz_jts_17
-        label_masks_29 = labels['target_weight_29']
-        label_masks_17 = labels['target_weight_17']
-
-        if pred_uvd_jts.shape[1] == 24 or pred_uvd_jts.shape[1] == 72:
-            pred_uvd_jts = pred_uvd_jts.cpu().reshape(pred_uvd_jts.shape[0], 24, 3)
-            gt_uvd_jts = labels['target_uvd_29'].cpu().reshape(pred_uvd_jts.shape[0], 29, 3)[:, :24, :]
-            gt_uvd_mask = label_masks_29.cpu().reshape(pred_uvd_jts.shape[0], 29, 3)[:, :24, :]
-            acc_uvd_29 = calc_coord_accuracy(pred_uvd_jts, gt_uvd_jts, gt_uvd_mask, hm_shape, num_joints=24)
-        else:
-            acc_uvd_29 = calc_coord_accuracy(pred_uvd_jts.detach().cpu(), labels['target_uvd_29'].cpu(), label_masks_29.cpu(), hm_shape, num_joints=29)
-        acc_xyz_17 = calc_coord_accuracy(pred_xyz_jts_17.detach().cpu(), labels['target_xyz_17'].cpu(), label_masks_17.cpu(), hm_shape, num_joints=17, root_idx=root_idx_17)
-
-        if isinstance(inps, list):
-            batch_size = inps[0].size(0)
-        else:
-            batch_size = inps.size(0)
-
-        loss_logger.update(loss.item(), batch_size)
-        acc_uvd_29_logger.update(acc_uvd_29, batch_size)
-        acc_xyz_17_logger.update(acc_xyz_17, batch_size)
-
-        optimizer.zero_grad()
-        loss.backward()
-
-        for group in optimizer.param_groups:
-            for param in group["params"]:
-                clip_grad.clip_grad_norm_(param, 5)
-
-        optimizer.step()
-
-        opt.trainIters += 1
-        if opt.log:
-            # TQDM
-            train_loader.set_description(
-                'loss: {loss:.8f} | accuvd29: {accuvd29:.4f} | acc17: {acc17:.4f}'.format(
-                    loss=loss_logger.avg,
-                    accuvd29=acc_uvd_29_logger.avg,
-                    acc17=acc_xyz_17_logger.avg)
-            )
+    train_loader2 = tqdm(train_loader, dynamic_ncols=True)
+    hybrik_result = []
+    num = 0
+    for j, results in enumerate(train_loader2):
+        # if j == 30 :
+        #     break
+        if type(results) != list:
+            hybrik_result.append({})
+            num += 1
+            print(num)
+            continue
+        inps, labels, _, bboxes = results
+        hybrik_result.append(labels)
+    train_loader.dataset.db0.db['hybrik_result'] = hybrik_result
+    joblib.dump(train_loader.dataset.db0.db, train_loader.dataset.db0._ann_file[:-16] + '_hybrik' + '.pt')
 
     if opt.log:
-        train_loader.close()
+        train_loader2.close()
 
     return loss_logger.avg, acc_xyz_17_logger.avg
 
@@ -282,26 +237,10 @@ def main_worker(gpu, opt, cfg):
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset, num_replicas=opt.world_size, rank=opt.rank)
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=(train_sampler is None), num_workers=opt.nThreads, sampler=train_sampler, worker_init_fn=_init_fn, pin_memory=True)
+        train_dataset, batch_size=1, shuffle=False, num_workers=opt.nThreads, worker_init_fn=_init_fn, pin_memory=True)
 
     cfg_test = copy.copy(cfg)
     cfg_test.DATASET.FLIP = False
-    # gt val dataset
-    if cfg.DATASET.DATASET == 'mix_smpl':
-        gt_val_dataset_h36m = MixDataset(
-            cfg=cfg_test,
-            train=False)
-    elif cfg.DATASET.DATASET == 'mix_smpl_cam' or cfg.DATASET.DATASET == 'mix2_smpl_cam':
-        gt_val_dataset_h36m = MixDatasetCam(
-            cfg=cfg_test,
-            train=False)
-    elif cfg.DATASET.DATASET == 'h36m_cam':
-        gt_val_dataset_h36m = H36MDataset2Cam(
-            cfg=cfg_test,
-            train=False)
-
-    else:
-        raise NotImplementedError
 
     # gt_val_dataset_3dpw = PW3D(
     #     cfg=cfg,
@@ -329,20 +268,6 @@ def main_worker(gpu, opt, cfg):
             if opt.log:
                 # Save checkpoint
                 torch.save(m.state_dict(), './exp/{}/{}-{}/model_{}.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id, opt.epoch))
-
-            # Prediction Test
-            with torch.no_grad():
-                gt_tot_err_h36m = validate_gt(m, opt, cfg, gt_val_dataset_h36m, heatmap_to_coord)
-                # gt_tot_err_3dpw = validate_gt(m, opt, cfg, gt_val_dataset_3dpw, heatmap_to_coord)
-                if opt.log:
-                    if gt_tot_err_h36m <= best_err_h36m:
-                        best_err_h36m = gt_tot_err_h36m
-                        torch.save(m.state_dict(), './exp/{}/{}-{}/best_h36m_model.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
-                    # if gt_tot_err_3dpw <= best_err_3dpw:
-                    #     best_err_3dpw = gt_tot_err_3dpw
-                    #     torch.save(m.module.state_dict(), './exp/{}/{}-{}/best_3dpw_model.pth'.format(cfg.DATASET.DATASET, cfg.FILE_NAME, opt.exp_id))
-
-                    logger.info(f'##### Epoch {opt.epoch} | h36m err: {gt_tot_err_h36m} / {best_err_h36m} #####')
 
         # torch.distributed.barrier()  # Sync
 

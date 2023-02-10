@@ -263,6 +263,8 @@ class SimpleTransform3DSMPLCam(object):
             xmin, ymin, xmax, ymax = bbox
             center, scale = _box_to_center_scale(
                 xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=self._scale_mult)
+
+            #####여기나 여기 위에서 바꾸면 될듯
             
             xmin, ymin, xmax, ymax = _center_scale_to_box(center, scale)
 
@@ -316,15 +318,15 @@ class SimpleTransform3DSMPLCam(object):
             joints_xyz = joint_cam - joint_cam[[self.root_idx]].copy() # the root index of mpii_3d is 4 !!!
 
             joints = gt_joints
-            if random.random() > 0.5 and self._train:
-                # src, fliped = random_flip_image(src, px=0.5, py=0)
-                # if fliped[0]:
-                assert src.shape[2] == 3
-                src = src[:, ::-1, :]
-
-                joints = flip_joints_3d(joints, imgwidth, self._joint_pairs)
-                joints_xyz = flip_xyz_joints_3d(joints_xyz, self._joint_pairs)
-                center[0] = imgwidth - center[0] - 1
+            # if random.random() > 0.5 and self._train:
+            #     # src, fliped = random_flip_image(src, px=0.5, py=0)
+            #     # if fliped[0]:
+            #     assert src.shape[2] == 3
+            #     src = src[:, ::-1, :]
+            #
+            #     joints = flip_joints_3d(joints, imgwidth, self._joint_pairs)
+            #     joints_xyz = flip_xyz_joints_3d(joints_xyz, self._joint_pairs)
+            #     center[0] = imgwidth - center[0] - 1
             
             joints_xyz = rotate_xyz_jts(joints_xyz, r)
 
@@ -355,6 +357,8 @@ class SimpleTransform3DSMPLCam(object):
                                         target_weight.reshape(-1, 3).copy())
 
         else:
+            # bbox_from_tcmr = self.db['bbox_from_tcmr'][idx]
+            bbox_from_tcmr = list(label['bbox_from_tcmr'])
             bbox = list(label['bbox'])
             joint_img_17 = label['joint_img_17'].copy()
             joint_relative_17 = label['joint_relative_17'].copy()
@@ -394,12 +398,16 @@ class SimpleTransform3DSMPLCam(object):
                 bbox = addDPG(bbox, imgwidth, imght)
 
             xmin, ymin, xmax, ymax = bbox
+            xmin, ymin, xmax, ymax = bbox_from_tcmr
             center, scale = _box_to_center_scale(
                 xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=self._scale_mult)
 
             xmin, ymin, xmax, ymax = _center_scale_to_box(center, scale)
 
-            # half body transform
+            #####여기나 여기 위에서 바꾸면 될듯 center scale도 잘 맞춰야하
+
+
+            # half bdy transform
             if self._train and (np.sum(joints_vis_17[:, 0]) > self.num_joints_half_body and np.random.rand() < self.prob_half_body):
                 # self.num_joints = 17
                 # c_half_body, s_half_body = self.half_body_transform(
@@ -456,17 +464,17 @@ class SimpleTransform3DSMPLCam(object):
             joint_cam_17_xyz = joint_cam_17
             joints_cam_24_xyz = joint_cam_29[:24]
 
-            if random.random() > 0.75 and self._train:
-                assert src.shape[2] == 3
-                src = src[:, ::-1, :]
-
-                joints_17_uvd = flip_joints_3d(joints_17_uvd, imgwidth, self._joint_pairs_17)
-                joints_29_uvd = flip_joints_3d(joints_29_uvd, imgwidth, self._joint_pairs_29)
-                joint_cam_17_xyz = flip_cam_xyz_joints_3d(joint_cam_17_xyz, self._joint_pairs_17)
-                joints_cam_24_xyz = flip_cam_xyz_joints_3d(joints_cam_24_xyz, self._joint_pairs_24)
-                theta = flip_thetas(theta, self._joint_pairs_24)
-                twist_phi, twist_weight = flip_twist(twist_phi, twist_weight, self._joint_pairs_24)
-                center[0] = imgwidth - center[0] - 1
+            # if random.random() > 0.75 and self._train:
+            #     assert src.shape[2] == 3
+            #     src = src[:, ::-1, :]
+            #
+            #     joints_17_uvd = flip_joints_3d(joints_17_uvd, imgwidth, self._joint_pairs_17)
+            #     joints_29_uvd = flip_joints_3d(joints_29_uvd, imgwidth, self._joint_pairs_29)
+            #     joint_cam_17_xyz = flip_cam_xyz_joints_3d(joint_cam_17_xyz, self._joint_pairs_17)
+            #     joints_cam_24_xyz = flip_cam_xyz_joints_3d(joints_cam_24_xyz, self._joint_pairs_24)
+            #     theta = flip_thetas(theta, self._joint_pairs_24)
+            #     twist_phi, twist_weight = flip_twist(twist_phi, twist_weight, self._joint_pairs_24)
+            #     center[0] = imgwidth - center[0] - 1
 
             # rotate global theta
             theta[0, :3] = rot_aa(theta[0, :3], r)
