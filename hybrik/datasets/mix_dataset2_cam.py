@@ -164,17 +164,17 @@ class MixDataset2Cam(data.Dataset):
         #     ann_file=cfg.DATASET.SET_LIST[0].TEST_SET,
         #     train=train)
 
-        self.db0 = H36mSMPL(
-            cfg=cfg,
-            ann_file=cfg.DATASET.SET_LIST[0].TRAIN_SET,
-            train=True)
-        self.dataset_idx = 0
-
-        # self.db0 = PW3D(
+        # self.db0 = H36mSMPL(
         #     cfg=cfg,
-        #     ann_file='3DPW_train_new.json',
+        #     ann_file=cfg.DATASET.SET_LIST[0].TRAIN_SET,
         #     train=True)
-        # self.dataset_idx = 3
+        # self.dataset_idx = 0
+
+        self.db0 = PW3D(
+            cfg=cfg,
+            ann_file='3DPW_train_new_tcmr.json',
+            train=True)
+        self.dataset_idx = 3
 
         # self.db0 = HP3D(
         #     cfg=cfg,

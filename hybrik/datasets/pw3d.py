@@ -166,7 +166,15 @@ class PW3D(data.Dataset):
         # load ground truth, including bbox, keypoints, image size
         label = {}
         for k in self.db.keys():
+            if k == 'meta_info_tcmr':
+                continue
             label[k] = self.db[k][idx].copy()
+        try:
+            if not label['is_in_tcmr']:
+                return torch.Tensor([0])
+        except:
+            pass
+        # img = cv2.cv
 
         # img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
         img = np.zeros([1920,1080,3]).astype('uint8')

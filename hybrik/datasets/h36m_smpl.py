@@ -176,8 +176,11 @@ class H36mSMPL(data.Dataset):
             if k == 'meta_info_tcmr':
                 continue
             label[k] = self.db[k][idx].copy()
-        if not label['is_in_tcmr']:
-            return torch.Tensor([0])
+        try:
+            if not label['is_in_tcmr']:
+                return torch.Tensor([0])
+        except:
+            pass
         # img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
         # img = load_image(img_path)
         # img = cv2.imread(img_path, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
