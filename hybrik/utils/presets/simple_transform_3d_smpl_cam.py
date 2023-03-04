@@ -104,7 +104,7 @@ class SimpleTransform3DSMPLCam(object):
 
     def __init__(self, dataset, scale_factor, color_factor, occlusion, add_dpg,
                  input_size, output_size, depth_dim, bbox_3d_shape,
-                 rot, sigma, train, loss_type='MSELoss', scale_mult=1.25, focal_length=1000, two_d=False,
+                 rot, sigma, train, loss_type='MSELoss', scale_mult=1., focal_length=1000, two_d=False,
                  root_idx=0):
         if two_d:
             self._joint_pairs = dataset.joint_pairs
@@ -150,7 +150,7 @@ class SimpleTransform3DSMPLCam(object):
     def test_transform(self, src, bbox):
         xmin, ymin, xmax, ymax = bbox
         center, scale = _box_to_center_scale(
-            xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=self._scale_mult)
+            xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=1)
         scale = scale * 1.0
 
         input_size = self._input_size
@@ -241,6 +241,7 @@ class SimpleTransform3DSMPLCam(object):
 
     def __call__(self, src, label):
         if self.two_d:
+            bbox_from_tcmr = list(label['bbox_from_tcmr'])
             bbox = list(label['bbox'])
             joint_img = label['joint_img'].copy()
             joints_vis = label['joint_vis'].copy()
@@ -261,8 +262,9 @@ class SimpleTransform3DSMPLCam(object):
                 bbox = addDPG(bbox, imgwidth, imght)
 
             xmin, ymin, xmax, ymax = bbox
+            xmin, ymin, xmax, ymax = bbox_from_tcmr
             center, scale = _box_to_center_scale(
-                xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=self._scale_mult)
+                xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=1)
 
             #####여기나 여기 위에서 바꾸면 될듯
             
@@ -400,7 +402,7 @@ class SimpleTransform3DSMPLCam(object):
             xmin, ymin, xmax, ymax = bbox
             xmin, ymin, xmax, ymax = bbox_from_tcmr
             center, scale = _box_to_center_scale(
-                xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=self._scale_mult)
+                xmin, ymin, xmax - xmin, ymax - ymin, self._aspect_ratio, scale_mult=1)
 
             xmin, ymin, xmax, ymax = _center_scale_to_box(center, scale)
 

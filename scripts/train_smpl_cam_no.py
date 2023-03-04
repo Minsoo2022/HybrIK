@@ -56,7 +56,8 @@ def train(opt, train_loader, m, criterion, optimizer, writer, epoch_num):
         inps, labels, _, bboxes = results
         hybrik_result.append(labels)
     train_loader.dataset.db0.db['hybrik_result'] = hybrik_result
-    joblib.dump(train_loader.dataset.db0.db, train_loader.dataset.db0._ann_file[:-16] + '_hybrik' + '.pt')
+    joblib.dump(train_loader.dataset.db0.db, train_loader.dataset.db0._ann_file[:-5] + '_hybrik_0218' + '.pt')
+    # train_loader.dataset.db0._ann_file[:-16]
 
     if opt.log:
         train_loader2.close()

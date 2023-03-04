@@ -170,17 +170,17 @@ class MixDataset2Cam(data.Dataset):
         #     train=True)
         # self.dataset_idx = 0
 
-        self.db0 = PW3D(
-            cfg=cfg,
-            ann_file='3DPW_train_new_tcmr.json',
-            train=True)
-        self.dataset_idx = 3
-
-        # self.db0 = HP3D(
+        # self.db0 = PW3D(
         #     cfg=cfg,
-        #     ann_file='annotation_mpi_inf_3dhp_train_v2_tcmr.json',
+        #     ann_file='3DPW_train_new_tcmr.json',
         #     train=True)
-        # self.dataset_idx = 2
+        # self.dataset_idx = 3
+
+        self.db0 = HP3D(
+            cfg=cfg,
+            ann_file='annotation_mpi_inf_3dhp_train_v2_tcmr.json',
+            train=True)
+        self.dataset_idx = 2
 
         self.dbh36 = H36mSMPL(
             cfg=cfg,
