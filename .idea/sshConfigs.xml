@@ -5,6 +5,9 @@
       <sshConfig authType="PASSWORD" host="localhost" id="1c1942d1-a459-44f6-b000-d6e5dee7cd0b" port="22" customName="8146" nameFormat="CUSTOM">
         <option name="customName" value="8146" />
       </sshConfig>
+      <sshConfig authType="PASSWORD" host="ec2-44-240-96-133.us-west-2.compute.amazonaws.com" id="9cfead23-e20e-4fb7-88db-75d0bf6ebff9" port="8145" customName="133_8145" nameFormat="CUSTOM" username="root">
+        <option name="customName" value="133_8145" />
+      </sshConfig>
     </configs>
   </component>
 </project>

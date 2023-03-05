@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="ubuntu@ec2-44-240-96-133.us-west-2.compute.amazonaws.com:22 key" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="ubuntu@ec2-44-240-96-133.us-west-2.compute.amazonaws.com:22" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="8146">
         <serverdata>
@@ -13,6 +13,20 @@
         <serverdata>
           <mappings>
             <mapping deploy="/ms/ws/HybrIK" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@ec2-44-240-96-133.us-west-2.compute.amazonaws.com:8145 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/ms/3DHP/HybrIK" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ubuntu@ec2-44-240-96-133.us-west-2.compute.amazonaws.com:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ubuntu/ms/3DHP/HybrIK" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
